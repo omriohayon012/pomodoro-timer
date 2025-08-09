@@ -1,12 +1,512 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pomodoro Timer</title>
-<!-- Full HTML content omitted for brevity in this Python snippet -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pomodoro Timer</title>
+  <style>
+    :root {
+      --bg: #0f1220;
+      --panel: #171a2b;
+      --accent: #6c8cff;
+      --accent-2: #00d1b2;
+      --text: #e9ecf1;
+      --muted: #9aa3b2;
+      --danger: #ff5d5d;
+      --ring: #263255;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 80% -20%, #1d2240, var(--bg));
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 880px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid #202849;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid #222a4a;
+    }
+
+    .logo {
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo .dot { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 16px var(--accent); }
+
+    .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .mode-buttons button {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid #263255;
+      padding: 8px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: 150ms ease;
+      font-weight: 600;
+    }
+    .mode-buttons button[aria-pressed="true"] {
+      color: var(--text);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(108,140,255,0.25);
+    }
+    .mode-buttons button:hover { border-color: var(--accent); color: var(--text); }
+
+    main { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; padding: 20px; }
+    @media (max-width: 840px) { main { grid-template-columns: 1fr; } }
+
+    .timer-card, .settings-card, .stats-card {
+      background: var(--panel);
+      border: 1px solid #202849;
+      border-radius: 16px;
+      padding: 18px;
+    }
+
+    .timer {
+      display: grid;
+      grid-template-columns: 1fr;
+      justify-items: center;
+      gap: 14px;
+      text-align: center;
+    }
+
+    .display {
+      width: 260px; height: 260px; position: relative;
+      display: grid; place-items: center;
+    }
+    .ring {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: conic-gradient(var(--accent) 0deg, var(--accent) var(--p), var(--ring) var(--p), var(--ring) 360deg);
+      filter: drop-shadow(0 0 24px rgba(108,140,255,0.35));
+    }
+    .ring::after {
+      content: ""; position: absolute; inset: 12px; border-radius: 50%; background: var(--panel); border: 1px solid #202849;
+    }
+
+    .time {
+      font-size: 58px; font-weight: 800; letter-spacing: 2px;
+    }
+    .label { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .1em; }
+
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .btn {
+      border: 1px solid #2a335d; background: #1a2346; color: var(--text);
+      padding: 10px 14px; border-radius: 12px; cursor: pointer; font-weight: 700; letter-spacing: .3px;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+    .btn:hover { transform: translateY(-1px); border-color: var(--accent); box-shadow: 0 4px 18px rgba(108,140,255,0.25); }
+    .btn.secondary { background: #152039; color: var(--muted); font-weight: 600; }
+    .btn.ghost { background: transparent; color: var(--muted); }
+    .btn.danger { background: #2a1720; border-color: #4b1e2b; color: #ffb3b3; }
+
+    .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    @media (max-width: 480px) { .settings-grid { grid-template-columns: 1fr; } }
+
+    .field { display: grid; gap: 6px; }
+    label { font-size: 13px; color: var(--muted); }
+    input[type="number"], input[type="checkbox"] + span, select {
+      background: #0f152e; color: var(--text); border: 1px solid #263255; border-radius: 10px; padding: 10px 12px; font-weight: 600;
+    }
+    input[type="number"] { width: 100%; }
+
+    .switch {
+      display: inline-grid; grid-auto-flow: column; align-items: center; gap: 8px; cursor: pointer;
+    }
+    .switch input { display: none; }
+    .switch .thumb {
+      width: 44px; height: 26px; background: #0f152e; border: 1px solid #263255; border-radius: 999px; position: relative; transition: 150ms ease;
+    }
+    .switch .thumb::after {
+      content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--muted); transition: 150ms ease;
+    }
+    .switch input:checked + .thumb { border-color: var(--accent-2); box-shadow: 0 0 0 2px rgba(0,209,178,0.2); }
+    .switch input:checked + .thumb::after { transform: translateX(18px); background: var(--accent-2); }
+
+    .stats {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center;
+    }
+    .stat { background: #0f152e; border: 1px solid #263255; border-radius: 12px; padding: 12px; }
+    .stat .k { font-size: 22px; font-weight: 800; }
+    .stat .s { color: var(--muted); font-size: 12px; }
+
+    footer { padding: 14px 18px; border-top: 1px solid #222a4a; color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    a { color: var(--accent-2); text-decoration: none; }
+  </style>
 </head>
 <body>
-<!-- Body content -->
+  <div class="app" role="application" aria-label="Pomodoro Timer">
+    <header>
+      <div class="logo" aria-label="Pomodoro Timer">
+        <span class="dot" aria-hidden="true"></span>
+        <span>Pomodoro Timer</span>
+      </div>
+      <div class="row mode-buttons" role="tablist" aria-label="Modes">
+        <button class="mode" data-mode="focus" aria-pressed="true" role="tab">Focus</button>
+        <button class="mode" data-mode="short" aria-pressed="false" role="tab">Short Break</button>
+        <button class="mode" data-mode="long" aria-pressed="false" role="tab">Long Break</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="timer-card">
+        <div class="timer">
+          <div class="display" aria-live="polite" aria-atomic="true">
+            <div class="ring" style="--p: 0deg" aria-hidden="true"></div>
+            <div>
+              <div class="time" id="time">25:00</div>
+              <div class="label" id="label">Focus</div>
+            </div>
+          </div>
+          <div class="controls">
+            <button class="btn" id="toggle" aria-pressed="false">Start</button>
+            <button class="btn secondary" id="reset">Reset</button>
+            <button class="btn ghost" id="skip">Skip</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-card">
+        <h3 style="margin-top:0">Settings</h3>
+        <div class="settings-grid">
+          <div class="field">
+            <label for="focusMins">Focus (minutes)</label>
+            <input id="focusMins" type="number" min="1" max="120" value="25" />
+          </div>
+          <div class="field">
+            <label for="shortMins">Short break (minutes)</label>
+            <input id="shortMins" type="number" min="1" max="60" value="5" />
+          </div>
+          <div class="field">
+            <label for="longMins">Long break (minutes)</label>
+            <input id="longMins" type="number" min="1" max="90" value="15" />
+          </div>
+          <div class="field">
+            <label for="intervals">Focus sessions until long break</label>
+            <input id="intervals" type="number" min="1" max="12" value="4" />
+          </div>
+          <div class="field">
+            <label class="switch">
+              <input id="autoStart" type="checkbox" />
+              <span class="thumb" aria-hidden="true"></span>
+              <span>Auto-start next session</span>
+            </label>
+          </div>
+          <div class="field">
+            <label class="switch">
+              <input id="sound" type="checkbox" checked />
+              <span class="thumb" aria-hidden="true"></span>
+              <span>Play sound when done</span>
+            </label>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px; gap:12px;">
+          <button class="btn" id="save">Save Settings</button>
+          <button class="btn ghost" id="notify">Enable Notifications</button>
+        </div>
+      </section>
+
+      <section class="stats-card">
+        <h3 style="margin-top:0">Stats</h3>
+        <div class="stats">
+          <div class="stat">
+            <div class="k" id="completed">0</div>
+            <div class="s">Focus sessions completed</div>
+          </div>
+          <div class="stat">
+            <div class="k" id="round">1</div>
+            <div class="s">Round (until long)</div>
+          </div>
+          <div class="stat">
+            <div class="k" id="streak">0</div>
+            <div class="s">Daily streak</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div>Keyboard: <strong>Space</strong> Start/Pause, <strong>R</strong> Reset, <strong>S</strong> Skip</div>
+      <div>All settings saved locally.</div>
+    </footer>
+  </div>
+
+  <audio id="ding" preload="auto">
+    <!-- Simple sine beep (base64 wav) -->
+    <source src="data:audio/wav;base64,UklGRuQHAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYBYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==" type="audio/wav" />
+  </audio>
+
+  <script>
+    (function() {
+      const $ = sel => document.querySelector(sel);
+      const modes = { focus: 'Focus', short: 'Short Break', long: 'Long Break' };
+      const state = {
+        mode: 'focus',
+        durations: { focus: 25*60, short: 5*60, long: 15*60 },
+        intervals: 4,
+        round: 1,
+        remaining: 25*60,
+        running: false,
+        lastTick: null,
+        completedFocus: 0,
+        dailyStreak: 0,
+        autoStart: false,
+        sound: true,
+      };
+
+      const timeEl = $('#time');
+      const labelEl = $('#label');
+      const ringEl = document.querySelector('.ring');
+      const toggleBtn = $('#toggle');
+      const resetBtn = $('#reset');
+      const skipBtn = $('#skip');
+      const completedEl = $('#completed');
+      const roundEl = $('#round');
+      const streakEl = $('#streak');
+      const ding = $('#ding');
+
+      // Local storage helpers
+      const saveKey = 'pomodoro.v1.settings';
+      const statsKey = 'pomodoro.v1.stats';
+      function saveSettings() {
+        const data = {
+          durations: state.durations,
+          intervals: state.intervals,
+          autoStart: state.autoStart,
+          sound: state.sound,
+        };
+        localStorage.setItem(saveKey, JSON.stringify(data));
+      }
+      function loadSettings() {
+        const raw = localStorage.getItem(saveKey);
+        if (!raw) return;
+        try {
+          const data = JSON.parse(raw);
+          if (data.durations) state.durations = data.durations;
+          if (data.intervals) state.intervals = data.intervals;
+          if (typeof data.autoStart === 'boolean') state.autoStart = data.autoStart;
+          if (typeof data.sound === 'boolean') state.sound = data.sound;
+        } catch {}
+      }
+      function saveStats() {
+        const today = new Date().toISOString().slice(0,10);
+        const data = { completedFocus: state.completedFocus, dailyStreak: state.dailyStreak, lastDay: today };
+        localStorage.setItem(statsKey, JSON.stringify(data));
+      }
+      function loadStats() {
+        const raw = localStorage.getItem(statsKey);
+        const today = new Date().toISOString().slice(0,10);
+        if (!raw) return;
+        try {
+          const data = JSON.parse(raw);
+          if (data.lastDay !== today) {
+            // new day: streak continues only if yesterday had activity
+            const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+            state.dailyStreak = data.lastDay === yesterday && data.completedFocus > 0 ? (data.dailyStreak||0)+1 : 0;
+            state.completedFocus = 0; // reset today
+          } else {
+            state.completedFocus = data.completedFocus || 0;
+            state.dailyStreak = data.dailyStreak || 0;
+          }
+        } catch {}
+      }
+
+      // UI bindings
+      function bindSettingsUI() {
+        const focusMins = $('#focusMins');
+        const shortMins = $('#shortMins');
+        const longMins = $('#longMins');
+        const intervals = $('#intervals');
+        const autoStart = $('#autoStart');
+        const sound = $('#sound');
+
+        focusMins.value = Math.round(state.durations.focus/60);
+        shortMins.value = Math.round(state.durations.short/60);
+        longMins.value = Math.round(state.durations.long/60);
+        intervals.value = state.intervals;
+        autoStart.checked = state.autoStart;
+        sound.checked = state.sound;
+
+        $('#save').addEventListener('click', () => {
+          state.durations.focus = clamp(+focusMins.value, 1, 120) * 60;
+          state.durations.short = clamp(+shortMins.value, 1, 60) * 60;
+          state.durations.long  = clamp(+longMins.value, 1, 90) * 60;
+          state.intervals = clamp(+intervals.value, 1, 12);
+          state.autoStart = autoStart.checked;
+          state.sound = sound.checked;
+          saveSettings();
+          // If user is on the same mode, update remaining display
+          setMode(state.mode, { keepRunning: false });
+        });
+
+        $('#notify').addEventListener('click', requestNotify);
+      }
+
+      function clamp(n, a, b){ return Math.max(a, Math.min(b, n||0)); }
+
+      function formatTime(s) {
+        s = Math.max(0, Math.round(s));
+        const m = Math.floor(s/60); const sec = s % 60;
+        return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+      }
+
+      function setMode(mode, opts={}) {
+        state.mode = mode;
+        state.remaining = state.durations[mode];
+        labelEl.textContent = modes[mode];
+        document.querySelectorAll('.mode').forEach(b=> b.setAttribute('aria-pressed', String(b.dataset.mode===mode)));
+        updateDisplay();
+        if (!opts.keepRunning) stop();
+      }
+
+      function updateDisplay() {
+        timeEl.textContent = formatTime(state.remaining);
+        const total = state.durations[state.mode];
+        const pct = 360 * (1 - (state.remaining / total));
+        ringEl.style.setProperty('--p', pct + 'deg');
+        completedEl.textContent = state.completedFocus;
+        roundEl.textContent = state.round;
+        streakEl.textContent = state.dailyStreak;
+        toggleBtn.textContent = state.running ? 'Pause' : 'Start';
+        toggleBtn.setAttribute('aria-pressed', String(state.running));
+        document.title = `${formatTime(state.remaining)} – ${modes[state.mode]}`;
+      }
+
+      function tick(now) {
+        if (!state.running) return;
+        if (!state.lastTick) state.lastTick = now;
+        const dt = Math.max(0, (now - state.lastTick) / 1000);
+        state.lastTick = now;
+        state.remaining -= dt;
+        if (state.remaining <= 0) {
+          complete();
+        }
+        updateDisplay();
+        requestAnimationFrame(tick);
+      }
+
+      function start() {
+        if (state.running) return;
+        state.running = true;
+        state.lastTick = null;
+        requestAnimationFrame(tick);
+        updateDisplay();
+      }
+      function stop() {
+        state.running = false;
+        state.lastTick = null;
+        updateDisplay();
+      }
+      function reset() {
+        state.remaining = state.durations[state.mode];
+        stop();
+      }
+
+      function nextMode() {
+        if (state.mode === 'focus') {
+          if (state.round >= state.intervals) {
+            state.round = 1;
+            setMode('long', { keepRunning: !state.running });
+          } else {
+            state.round++;
+            setMode('short', { keepRunning: !state.running });
+          }
+        } else {
+          setMode('focus', { keepRunning: !state.running });
+        }
+      }
+
+      function complete() {
+        // Count completed focus sessions
+        if (state.mode === 'focus') {
+          state.completedFocus++;
+          // Update streak (today)
+          const raw = localStorage.getItem(statsKey);
+          const today = new Date().toISOString().slice(0,10);
+          let prev = { dailyStreak: state.dailyStreak, lastDay: today };
+          try { prev = Object.assign(prev, JSON.parse(raw)||{}); } catch {}
+          if (prev.lastDay !== today) {
+            // new day
+            const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+            state.dailyStreak = prev.lastDay === yesterday ? (prev.dailyStreak||0)+1 : 0;
+          }
+        }
+        saveStats();
+
+        // Sound & notification
+        if (state.sound) { try { ding.currentTime = 0; ding.play(); } catch {} }
+        notify(`${modes[state.mode]} finished`, 'Time for the next session');
+
+        // Move to next
+        nextMode();
+        if (state.autoStart) start(); else stop();
+      }
+
+      function requestNotify() {
+        if (!('Notification' in window)) { alert('Notifications not supported in this browser.'); return; }
+        if (Notification.permission === 'granted') { alert('Notifications already enabled.'); return; }
+        Notification.requestPermission().then(p => {
+          if (p === 'granted') notify('Notifications enabled', 'I\'ll alert you when sessions finish.');
+        });
+      }
+      function notify(title, body) {
+        if (!('Notification' in window)) return;
+        if (document.hasFocus()) return; // avoid noisy popups while focused
+        if (Notification.permission === 'granted') {
+          const n = new Notification(title, { body });
+          setTimeout(()=>n.close(), 5000);
+        }
+      }
+
+      // Event listeners
+      toggleBtn.addEventListener('click', () => state.running ? stop() : start());
+      resetBtn.addEventListener('click', reset);
+      skipBtn.addEventListener('click', () => { nextMode(); updateDisplay(); if (state.autoStart) start(); });
+
+      document.querySelectorAll('.mode').forEach(btn => btn.addEventListener('click', () => {
+        setMode(btn.dataset.mode);
+      }));
+
+      // Keyboard shortcuts
+      window.addEventListener('keydown', (e) => {
+        if (e.target && ['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+        if (e.code === 'Space') { e.preventDefault(); state.running ? stop() : start(); }
+        if (e.key.toLowerCase() === 'r') { e.preventDefault(); reset(); }
+        if (e.key.toLowerCase() === 's') { e.preventDefault(); skipBtn.click(); }
+      });
+
+      // Init
+      loadSettings();
+      loadStats();
+      bindSettingsUI();
+      setMode('focus');
+      updateDisplay();
+
+      // Persist stats periodically
+      setInterval(saveStats, 5000);
+    })();
+  </script>
 </body>
 </html>
